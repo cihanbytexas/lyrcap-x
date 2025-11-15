@@ -5,14 +5,24 @@ async function fetchLyricsFromGenius(songQuery) {
   const query = encodeURIComponent(songQuery);
   const searchUrl = `https://genius.com/api/search/song?q=${query}`;
 
-  const searchRes = await fetch(searchUrl);
+  // Genius API isteği için User-Agent ekle
+  const searchRes = await fetch(searchUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+  });
+
   const searchData = await searchRes.json();
 
   const hits = searchData.response.sections[0].hits;
   if (!hits.length) return null;
 
   const songUrl = hits[0].result.url;
-  const htmlRes = await fetch(songUrl);
+  const htmlRes = await fetch(songUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+  });
   const html = await htmlRes.text();
 
   const dom = new JSDOM(html);
