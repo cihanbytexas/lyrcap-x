@@ -16,41 +16,34 @@ export default async function handler(req, res) {
     if (!GENIUS_API_KEY)
       return res.status(500).json({ success: false, error: "GENIUS_API_KEY eksik." });
 
-    // 1️⃣ GENIUS SEARCH → SONG URL AL
+    // 🔥 1. DOĞRU SEARCH
     const searchUrl = `https://api.genius.com/search?q=${encodeURIComponent(music_name)}`;
     const searchRes = await fetch(searchUrl, {
       headers: { Authorization: `Bearer ${GENIUS_API_KEY}` }
     });
 
-    if (!searchRes.ok)
-      return res.status(500).json({ success: false, error: "Genius API hatası", status: searchRes.status });
-
     const searchData = await searchRes.json();
 
-    const hits = searchData?.response?.sections?.[0]?.hits || [];
+    // 🔥 DOĞRU PATH
+    const hits = searchData?.response?.hits || [];
     if (!hits.length)
       return res.status(404).json({ success: false, error: "Şarkı bulunamadı." });
 
     const geniusUrl = hits[0].result.url;
 
-    // 2️⃣ TEXTISE → SONG LYRICS CAPTCHA BYPASS
+    // 🔥 2. TEXTISE CAPTCHA BYPASS
     const textiseUrl = `https://textise.net/showtext.aspx?strURL=${encodeURIComponent(geniusUrl)}`;
-
     const textiseRes = await fetch(textiseUrl);
     const text = await textiseRes.text();
 
-    // Lyrics ayıklama
     const cleanLyrics = text
-      .replace(/<[^>]*>/g, "")         // HTML temizle
-      .replace(/\s{2,}/g, "\n")        // çift boşluk yerine yeni satır
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s{2,}/g, "\n")
       .trim();
 
     return res.status(200).json({
       success: true,
-      data: {
-        music_name,
-        lyrics: cleanLyrics
-      }
+      data: { music_name, lyrics: cleanLyrics }
     });
 
   } catch (err) {
