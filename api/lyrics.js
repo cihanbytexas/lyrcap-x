@@ -1,44 +1,40 @@
 import { JSDOM } from "jsdom";
 
-// Genius scraping fonksiyonu (Python'daki mantık)
-async function fetchLyricsFromGenius(artist, song) {
-  const query = encodeURIComponent(`${artist} ${song}`);
-  const searchUrl = `https://genius.com/search?q=${query}`;
+// Genius scraping fonksiyonu
+async function fetchLyricsFromGenius(music_name) {
+  const query = encodeURIComponent(music_name);
+  const searchUrl = `https://api.genius.com/search?q=${query}`;
 
-  try {
-    // Genius arama sayfasını fetch et
-    const searchHtmlRes = await fetch(searchUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
-    });
-    const searchHtml = await searchHtmlRes.text();
-    const searchDom = new JSDOM(searchHtml);
-    const document = searchDom.window.document;
+  const GENIUS_API_KEY = process.env.GENIUS_API_KEY;
+  if (!GENIUS_API_KEY) throw new Error("GENIUS_API_KEY .env dosyasında tanımlı değil.");
 
-    // İlk şarkı linkini bul
-    const firstLinkEl = document.querySelector("a.song_link");
-    if (!firstLinkEl) return null;
-    const songUrl = firstLinkEl.href;
+  const headers = {
+    Authorization: `Bearer ${GENIUS_API_KEY}`
+  };
 
-    // Şarkı sayfasını çek
-    const songHtmlRes = await fetch(songUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
-    });
-    const songHtml = await songHtmlRes.text();
-    const songDom = new JSDOM(songHtml);
-    const songDocument = songDom.window.document;
+  // Genius API ile arama
+  const searchRes = await fetch(searchUrl, { headers });
+  if (!searchRes.ok) throw new Error(`Genius API Error: ${searchRes.status}`);
 
-    // Lyrics divlerini bul
-    const lyricsDivs = songDocument.querySelectorAll("div[class^='Lyrics__Container'], div.lyrics");
+  const searchData = await searchRes.json();
+  const hits = searchData.response.hits;
+  if (!hits.length) return null;
 
-    let lyrics = "";
-    lyricsDivs.forEach(div => {
-      lyrics += div.textContent + "\n";
-    });
+  const songUrl = hits[0].result.url;
 
-    return lyrics.trim() || null;
-  } catch (err) {
-    return null;
-  }
+  // Lyrics sayfasını çek
+  const htmlRes = await fetch(songUrl, {
+    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+  });
+  const html = await htmlRes.text();
+
+  const dom = new JSDOM(html);
+  const divs = dom.window.document.querySelectorAll("div[class^='Lyrics__Container'], div.lyrics");
+
+  let lyrics = "";
+  divs.forEach(div => (lyrics += div.textContent + "\n"));
+
+  return lyrics.trim() || null;
 }
 
 export default async function handler(req, res) {
@@ -48,7 +44,6 @@ export default async function handler(req, res) {
     }
 
     const { music_name, dev } = req.body;
-
     if (!music_name || !dev) {
       return res.status(400).json({ success: false, error: "music_name ve dev zorunlu." });
     }
@@ -57,20 +52,7 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, error: "Geçersiz dev değeri." });
     }
 
-    // artist + song ayrımı yapabiliriz, yoksa tüm string ile çalışıyor
-    let artist = "";
-    let song = "";
-    const parts = music_name.split(" ");
-    if (parts.length >= 2) {
-      artist = parts[0];
-      song = parts.slice(1).join(" ");
-    } else {
-      artist = music_name;
-      song = music_name;
-    }
-
-    const lyrics = await fetchLyricsFromGenius(artist, song);
-
+    const lyrics = await fetchLyricsFromGenius(music_name);
     if (!lyrics) {
       return res.status(404).json({ success: false, error: "Şarkı bulunamadı." });
     }
@@ -82,7 +64,6 @@ export default async function handler(req, res) {
         lyrics
       }
     });
-
   } catch (err) {
     return res.status(500).json({ success: false, error: "Sunucu hatası", detail: err.message });
   }
