@@ -1,14 +1,13 @@
 {
   "name": "lyrics-api",
   "version": "1.0.0",
-  "description": "Vercel + Node.js 22 uyumlu Lyrics API",
+  "description": "Vercel + Node.js 22 uyumlu Lyrics API (native fetch + jsdom)",
   "main": "api/lyrics.js",
   "scripts": {
     "start": "vercel dev",
     "dev": "vercel dev"
   },
   "dependencies": {
-    "node-fetch": "^3.4.0",
     "jsdom": "^22.1.0"
   },
   "type": "module",
