@@ -1,7 +1,7 @@
 {
   "name": "lyrics-api",
-  "version": "1.0.1",
-  "description": "Vercel + Node.js 22 uyumlu Lyrics API (scraping + user-agent)",
+  "version": "1.0.2",
+  "description": "Vercel + Node.js 22 uyumlu Lyrics API (scraping HTML like Python)",
   "main": "api/lyrics.js",
   "scripts": {
     "start": "vercel dev",
