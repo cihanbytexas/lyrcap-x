@@ -1,38 +1,65 @@
 import { JSDOM } from "jsdom";
 
-// Genius scraping fonksiyonu
 async function fetchLyricsFromGenius(music_name) {
   const query = encodeURIComponent(music_name);
   const searchUrl = `https://api.genius.com/search?q=${query}`;
 
-  const GENIUS_API_KEY = process.env.GENIUS_API_KEY;
-  if (!GENIUS_API_KEY) throw new Error("GENIUS_API_KEY .env dosyasında tanımlı değil.");
+  const token = process.env.GENIUS_ACCESS_TOKEN;
+  if (!token) throw new Error("GENIUS_ACCESS_TOKEN tanımlı değil.");
 
   const headers = {
-    Authorization: `Bearer ${GENIUS_API_KEY}`
+    Authorization: `Bearer ${token}`
   };
 
-  // Genius API ile arama
+  // ► 1) GENIUS ARAMA
   const searchRes = await fetch(searchUrl, { headers });
-  if (!searchRes.ok) throw new Error(`Genius API Error: ${searchRes.status}`);
+
+  if (!searchRes.ok) {
+    throw new Error(`Genius API Hatası: ${searchRes.status} (${await searchRes.text()})`);
+  }
 
   const searchData = await searchRes.json();
   const hits = searchData.response.hits;
-  if (!hits.length) return null;
+
+  if (!hits || hits.length === 0) return null;
 
   const songUrl = hits[0].result.url;
 
-  // Lyrics sayfasını çek
+  // ► 2) GENIUS LYRICS SAYFASINI ÇEKME
   const htmlRes = await fetch(songUrl, {
-    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "Accept-Language": "en-US,en;q=0.9"
+    }
   });
+
   const html = await htmlRes.text();
-
   const dom = new JSDOM(html);
-  const divs = dom.window.document.querySelectorAll("div[class^='Lyrics__Container'], div.lyrics");
 
+  // ► 3) Lyrics DOM seçimleri
+  let containers = dom.window.document.querySelectorAll("div[class^='Lyrics__Container']");
+  if (!containers.length) {
+    containers = dom.window.document.querySelectorAll(".lyrics");
+  }
+
+  // ► 4) Eğer hala yoksa fallback regex (Genius CF koruması için)
+  if (!containers.length) {
+    const regex = /<div[^>]*>([^<]+)<\/div>/g;
+    let match;
+    let fallback = "";
+
+    while ((match = regex.exec(html)) !== null) {
+      fallback += match[1] + "\n";
+    }
+
+    return fallback.trim() || null;
+  }
+
+  // ► 5) Lyrics dizme
   let lyrics = "";
-  divs.forEach(div => (lyrics += div.textContent + "\n"));
+  containers.forEach(div => {
+    lyrics += div.textContent.trim() + "\n\n";
+  });
 
   return lyrics.trim() || null;
 }
@@ -44,6 +71,7 @@ export default async function handler(req, res) {
     }
 
     const { music_name, dev } = req.body;
+
     if (!music_name || !dev) {
       return res.status(400).json({ success: false, error: "music_name ve dev zorunlu." });
     }
@@ -53,6 +81,7 @@ export default async function handler(req, res) {
     }
 
     const lyrics = await fetchLyricsFromGenius(music_name);
+
     if (!lyrics) {
       return res.status(404).json({ success: false, error: "Şarkı bulunamadı." });
     }
@@ -64,7 +93,12 @@ export default async function handler(req, res) {
         lyrics
       }
     });
+
   } catch (err) {
-    return res.status(500).json({ success: false, error: "Sunucu hatası", detail: err.message });
+    return res.status(500).json({
+      success: false,
+      error: "Sunucu hatası",
+      detail: err.message
+    });
   }
 }
