@@ -1,19 +1,13 @@
 {
-  "name": "lyrics-api",
-  "version": "1.0.2",
-  "description": "Vercel + Node.js 22 uyumlu Lyrics API (scraping HTML like Python)",
-  "main": "api/lyrics.js",
+  "name": "texas-genius-lyrics-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "start": "vercel dev",
-    "dev": "vercel dev"
+    "start": "node index.js"
   },
   "dependencies": {
-    "jsdom": "^22.1.0"
-  },
-  "type": "module",
-  "engines": {
-    "node": "22.x"
-  },
-  "author": "texastr",
-  "license": "MIT"
+    "@sparticuz/chromium": "^127.0.0",
+    "puppeteer-core": "^22.10.0"
+  }
 }
